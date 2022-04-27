@@ -2,41 +2,93 @@
 
 namespace App\Entity;
 
+use Nelmio\ApiDocBundle\Annotation\Model;
+use OpenApi\Annotations as OA;
 use App\Repository\VehicleRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: VehicleRepository::class)]
 class Vehicle
-{
+{    
+    /*
+     * @var int
+     * @OA\Property(description="The unique identifier of the user.")
+     */
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
     private $id;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("string")
+     * @OA\Property(type="string", maxLength=255)
+     */
     #[ORM\Column(type: 'string', length: 255)]
     private $make;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("string")
+     * @OA\Property(type="string", maxLength=255)
+     */
     #[ORM\Column(type: 'string', length: 255)]
     private $model;
 
+    /**
+     * @Assert\NotBlank
+     * 
+     * @OA\Property(type="enum", description="used | new")
+     */
     #[ORM\Column(type: 'string', length: 255, columnDefinition: "enum('used', 'new')")]
-    private $vehicule_type;
+    private $vehicle_type;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("string")
+     * @OA\Property(type="string", maxLength=255)
+     */
     #[ORM\Column(type: 'string', length: 255, unique: true)]
     private $vin;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("integer")
+     * @OA\Property(type="integer")
+     */
     #[ORM\Column(type: 'integer')]
     private $miles;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Regex("/^\d+(\.\d+)?/")
+     * @OA\Property(type="decimal", description="precision: 20, scale: 2")
+     */
     #[ORM\Column(type: 'decimal', precision: 20, scale: 2)]
     private $msrp;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("integer")
+     * @OA\Property(type="integer")
+     */
     #[ORM\Column(type: 'integer')]
     private $year;
 
+    /**
+     * @Assert\NotBlank
+     * @Assert\Type("datetime")
+     * @OA\Property(type="datetime")
+     */
     #[ORM\Column(type: 'datetime')]
     private $date_added;
 
+    /**
+     * @Assert\Type("boolean")
+     * 
+     * @OA\Property(type="boolean", description="vehicle status deleted or not")
+     */
     #[ORM\Column(type: 'boolean', nullable: true)]
     private $deleted;
 
@@ -69,14 +121,14 @@ class Vehicle
         return $this;
     }
 
-    public function getType(): ?string
+    public function getVehicleType(): ?string
     {
-        return $this->vehicule_type;
+        return $this->vehicle_type;
     }
 
-    public function setType(string $type): self
+    public function setVehicleType(string $type): self
     {
-        $this->vehicule_type = $type;
+        $this->vehicle_type = $type;
 
         return $this;
     }
@@ -153,12 +205,17 @@ class Vehicle
         return $this;
     }
 
+    public function dataDefaults()
+    {
+        $this->date_added = new \DateTime();
+    }
+  
     public function toArray()
     {
         return [
             'id' => $this->getId(),
             'date_added' => $this->getDateAdded(),
-            'vehicule_type' => $this->getType(),
+            'vehicle_type' => $this->getVehicleType(),
             'msrp' => $this->getMsrp(),
             'year' => $this->getYear(),
             'make' => $this->getMake(),

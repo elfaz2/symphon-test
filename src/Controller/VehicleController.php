@@ -11,88 +11,188 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Nelmio\ApiDocBundle\Annotation\Model;
+use Nelmio\ApiDocBundle\Annotation\Security;
+use OpenApi\Annotations as OA;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class VehicleController extends AbstractController
 {
-    // API
-    // returning all vehicules
-    #[Route('/api/vehicles', name: 'api_vehicle_index', methods: ['GET'])]
-    public function api_index(VehicleRepository $vehicleRepository): Response
+
+    private $vehicleRepository;
+    private SerializerInterface $serializer;
+
+    public function __construct(VehicleRepository $vehicleRepository, SerializerInterface $serializer) {
+        $this->vehicleRepository = $vehicleRepository;
+        $this->serializer = $serializer;
+    }
+
+    
+    /**
+     * @OA\Response(
+     *     response=200,
+     *     description="Returns all vehicle",
+     *     @Model(type=Vehicle::class)
+     * )
+     */ 
+    #[Route('/api/vehicles', name: 'get_vehicles', methods: ['GET'])]
+    public function get_vehicles(): Response
     {
-        return new JsonResponse($vehicleRepository->findAllAsArray(), Response::HTTP_OK);
+        return new JsonResponse($this->vehicleRepository->findAllAsArray(), Response::HTTP_OK);
     }
 
 
-    // API
-    // adding new vehicule
-    #[Route('/api/vehicle/new', name: 'api_vehicle_new', methods: ['POST'])]
-    public function api_new(Request $request, VehicleRepository $vehicleRepository, ValidatorInterface $validator): JsonResponse
+    /**
+     * @OA\RequestBody(
+     *      description="Add new vehicule",     
+     *   @OA\JsonContent(
+     *      @OA\Property(type="datetime", property="date_added"),
+     *      @OA\Property(type="string", property="vehicule_type"),
+     *      @OA\Property(type="integer", property="msrp"),
+     *      @OA\Property(type="integer", property="year"),
+     *      @OA\Property(type="string", property="make"),
+     *      @OA\Property(type="string", property="model"),
+     *      @OA\Property(type="string", property="vin"),
+     *      @OA\Property(type="boolean", property="deleted")
+     *  )
+     * )
+     * 
+     * @OA\Response(
+     *  response=200,
+     *  description="New vehicle added message",
+     *  @OA\JsonContent(
+     *      @OA\Property(type="string", property="status")
+     *  )
+     * )
+    */
+    #[Route('/api/vehicle/new', name: 'add_vehicle', methods: ['POST'])]
+    public function add_vehicle(Request $request, ValidatorInterface $validator): JsonResponse
     {
-        $data = json_decode(html_entity_decode($request->getContent()), true);
-        $vehicle = new Vehicle();
-        $vehicle->setDateAdded(new \DateTime($data['date_added']));
-        $vehicle->setType($data['vehicule_type']);
-        $vehicle->setMsrp($data['msrp']);
-        $vehicle->setYear($data['year']);
-        $vehicle->setMake($data['make']);
-        $vehicle->setModel($data['model']);
-        $vehicle->setMiles($data['miles']);
-        $vehicle->setVin($data['vin']);
-        $vehicle->setDeleted($data['deleted']);
-
-        $errors = $validator->validate($vehicle);
-
-        if (count($errors) > 0) {
-            $errorsString = (string) $errors;
-            return new JsonResponse($errorsString, Response::HTTP_NOT_IMPLEMENTED);
-        }
-
-        $vehicleRepository->add($vehicle);
-        return new JsonResponse(['status' => 'New  vehicule added!'], Response::HTTP_CREATED);
-    }
-
-
-    // API 
-    // return vehicule with given id
-    #[Route('/api/vehicle/{id}', name: 'api_vehicle_show', methods: ['GET'])]
-    public function api_show(Vehicle $vehicle): JsonResponse
-    {
-        return new JsonResponse($vehicle->toArray(), Response::HTTP_OK);
-    }
-
-
-    // API
-    // Edit vehicule
-    #[Route('/api/vehicle/{id}/edit', name: 'api_vehicle_edit', methods: ['POST'])]
-    public function api_edit(Request $request, Vehicle $vehicle, VehicleRepository $vehicleRepository, ValidatorInterface $validator):  JsonResponse
-    {
-        $data = json_decode(html_entity_decode($request->getContent()), true);
-        $vehicle->setDateAdded(new \DateTime($data['date_added']));
-        $vehicle->setType($data['vehicule_type']);
-        $vehicle->setMsrp($data['msrp']);
-        $vehicle->setYear($data['year']);
-        $vehicle->setMake($data['make']);
-        $vehicle->setModel($data['model']);
-        $vehicle->setMiles($data['miles']);
-        $vehicle->setVin($data['vin']);
-        $vehicle->setDeleted($data['deleted']);
+        $vehicle = new Vehicle;
+        $vehicle->dataDefaults();
         
-        $errors = $validator->validate($author);
+        $form = $this->createForm(VehicleType::class, $vehicle);
+        $form->submit($request->request->all());
 
-        if (count($errors) > 0) {
-            $errorsString = (string) $errors;
-            return new JsonResponse($errorsString, Response::HTTP_NOT_IMPLEMENTED);
+        
+        $errors = $validator->validate($vehicle);
+        
+        if(count($errors) == 0) {
+            $this->vehicleRepository->add($vehicle);
+            return new JsonResponse(['status' => 'New  vehicle added!'], Response::HTTP_CREATED);
         }
-        $vehicleRepository->add($vehicle);
-        return new JsonResponse(['status' => 'Vehicule edit successful!'], Response::HTTP_OK);
+        else {
+            $errors = $validator->validate($vehicle);
+            $errorsString = (string) $errors;
+            return new JsonResponse(['error' => $this->serializer->serialize($errors,'json') ], Response::HTTP_NOT_IMPLEMENTED);
+        }
     }
 
-    // API
-    // delete vehicule with given id
-    #[Route('/api/vehicle/{id}', name: 'api_vehicle_delete', methods: ['DELETE'])]
-    public function api_delete(Request $request, Vehicle $vehicle, VehicleRepository $vehicleRepository): JsonResponse
+
+    
+    /**
+     * @OA\Response(
+     *     response=200,
+     *     description="Returns vehicle with given ID",
+     *     @Model(type=Vehicle::class)
+     * )
+     * 
+     * @OA\Response(
+     *     response=204,
+     *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
+     * )
+     */ 
+    #[Route('/api/vehicle/{id}', name: 'get_vehicle', methods: ['GET'])]
+    public function get_vehicle($id, VehicleRepository $vehicleRepository,): JsonResponse
     {
-        $vehicleRepository->remove($vehicle);
-        return new JsonResponse(['status' => 'Vehicule deleted!'], Response::HTTP_NO_CONTENT);
+        $vehicle = $this->vehicleRepository->find($id);
+
+        if($vehicle)
+            return new JsonResponse($vehicle->toArray(), Response::HTTP_OK);
+        else
+            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
+    }
+
+
+    /**
+     * @OA\RequestBody(
+     *      description="Edit vehicule",     
+     *   @OA\JsonContent(
+     *      @OA\Property(type="datetime", property="date_added"),
+     *      @OA\Property(type="string", property="vehicule_type"),
+     *      @OA\Property(type="integer", property="msrp"),
+     *      @OA\Property(type="integer", property="year"),
+     *      @OA\Property(type="string", property="make"),
+     *      @OA\Property(type="string", property="model"),
+     *      @OA\Property(type="string", property="vin"),
+     *      @OA\Property(type="boolean", property="deleted")
+     *  )
+     * )
+     * 
+     * @OA\Response(
+     *  response=200,
+     *  description="Vehicle edit successful message",
+     *  @OA\JsonContent(
+     *      @OA\Property(type="string", property="status")
+     *  )
+     * )
+     * 
+     * @OA\Response(
+     *     response=204,
+     *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
+     * )
+     */ 
+    #[Route('/api/vehicle/{id}', name: 'edit_vehicle', methods: ['PATCH'])]
+    public function edit_vehicle($id, Request $request, ValidatorInterface $validator):  JsonResponse
+    {
+        $vehicle = $this->vehicleRepository->find($id);
+        
+        if($vehicle)
+        {
+            $form = $this->createForm(VehicleType::class, $vehicle);
+            $form->submit($request->request->all());
+
+            $errors = $validator->validate($vehicle);
+            
+            if(count($errors) == 0) {
+                $this->vehicleRepository->add($vehicle);
+                return new JsonResponse(['status' => 'Vehicle edit successful!'], Response::HTTP_CREATED);
+            }
+            else {
+                $errors = $validator->validate($vehicle);
+                $errorsString = (string) $errors;
+                return new JsonResponse(['error' => $this->serializer->serialize($errors,'json') ], Response::HTTP_NOT_IMPLEMENTED);
+            }
+        }
+        else
+            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
+    }
+    
+    /**
+     * @OA\Response(
+     *  response=200,
+     *  description="Vehicle deleted message",
+     *  @OA\JsonContent(
+     *      @OA\Property(type="string", property="status")
+     *  )
+     * )
+     * 
+     * @OA\Response(
+     *     response=204,
+     *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
+     * )
+     */ 
+    #[Route('/api/vehicle/{id}', name: 'delete_vehicle', methods: ['DELETE'])]
+    public function delete_vehicle($id, VehicleRepository $vehicleRepository): JsonResponse
+    {        
+        $vehicle = $this->vehicleRepository->find($id);
+
+        if($vehicle)
+        {
+            $this->vehicleRepository->remove($vehicle);
+            return new JsonResponse(['status' => 'vehicle deleted!'], Response::HTTP_OK);
+        }
+        else
+            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
     }
 }
