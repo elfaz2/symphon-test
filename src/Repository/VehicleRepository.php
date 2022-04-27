@@ -47,16 +47,35 @@ class VehicleRepository extends ServiceEntityRepository
         }
     }
 
-    public function findAllAsArray()
+    public function findAllAsArray($data = null)
     {
-        $query = $this->createQueryBuilder('v')
+        $query =  $this->createQueryBuilder('v')
             ->andWhere('v.deleted = :val')
             ->setParameter('val', 0)
             ->andWhere('v.vehicle_type = :type')
-            ->setParameter('type', $_ENV['VEHICLE_TYPE'])
-            ->orderBy('v.id', 'ASC')
+            ->setParameter('type', $_ENV['VEHICLE_TYPE']);
+
+        if(array_key_exists('make',$data)) {
+            $query = $query->andWhere('v.make = :make')
+                ->setParameter('make', $data['make']);
+        }        
+        if(array_key_exists('model',$data)) {
+            $query = $query->andWhere('v.model = :model')
+                ->setParameter('model', $data['model']);
+        }       
+        if(array_key_exists('vin', $data)) {
+            $query = $query->andWhere('v.vin = :vin')
+                ->setParameter('vin', $data['vin']);
+        }       
+        if(array_key_exists('msrp', $data)) {
+            $query = $query->andWhere('v.msrp = :msrp')
+                ->setParameter('msrp', $data['msrp']);
+        }
+
+        $query = $query->orderBy('v.id', 'ASC')
             ->getQuery()
-            ->getArrayResult()
-        ;
+            ->getArrayResult();
+
+        return $query;
     }
 }
