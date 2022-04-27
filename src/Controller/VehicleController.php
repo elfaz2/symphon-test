@@ -29,22 +29,50 @@ class VehicleController extends AbstractController
 
     
     /**
+     * 
      * @OA\Response(
      *     response=200,
      *     description="Returns all vehicle",
      *     @Model(type=Vehicle::class)
      * )
+     * 
      */ 
     #[Route('/api/vehicles', name: 'get_vehicles', methods: ['GET'])]
-    public function get_vehicles(): Response
+    public function get_vehicles(Request $request): Response
     {
-        return new JsonResponse($this->vehicleRepository->findAllAsArray(), Response::HTTP_OK);
+        $filter_data = $request->query->all();
+        return new JsonResponse($this->vehicleRepository->findAllAsArray($filter_data), Response::HTTP_OK);
+    }
+    
+    /**
+     * 
+     * @OA\Response(
+     *     response=200,
+     *     description="Returns vehicle with given ID",
+     *     @Model(type=Vehicle::class)
+     * )
+     * 
+     * @OA\Response(
+     *     response=204,
+     *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
+     * )
+     * 
+     */ 
+    #[Route('/api/vehicle/{id}', name: 'get_vehicle', methods: ['GET'])]
+    public function get_vehicle($id, VehicleRepository $vehicleRepository,): JsonResponse
+    {
+        $vehicle = $this->vehicleRepository->find($id);
+
+        if($vehicle)
+            return new JsonResponse($vehicle->toArray(), Response::HTTP_OK);
+        else
+            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
     }
 
-
     /**
+     * 
      * @OA\RequestBody(
-     *      description="Add new vehicule",     
+     *   description="Add new vehicule",     
      *   @OA\JsonContent(
      *      @OA\Property(type="datetime", property="date_added"),
      *      @OA\Property(type="string", property="vehicule_type"),
@@ -64,7 +92,8 @@ class VehicleController extends AbstractController
      *      @OA\Property(type="string", property="status")
      *  )
      * )
-    */
+     * 
+     */
     #[Route('/api/vehicle/new', name: 'add_vehicle', methods: ['POST'])]
     public function add_vehicle(Request $request, ValidatorInterface $validator): JsonResponse
     {
@@ -82,41 +111,15 @@ class VehicleController extends AbstractController
             return new JsonResponse(['status' => 'New  vehicle added!'], Response::HTTP_CREATED);
         }
         else {
-            $errors = $validator->validate($vehicle);
             $errorsString = (string) $errors;
             return new JsonResponse(['error' => $this->serializer->serialize($errors,'json') ], Response::HTTP_NOT_IMPLEMENTED);
         }
     }
 
-
-    
     /**
-     * @OA\Response(
-     *     response=200,
-     *     description="Returns vehicle with given ID",
-     *     @Model(type=Vehicle::class)
-     * )
      * 
-     * @OA\Response(
-     *     response=204,
-     *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
-     * )
-     */ 
-    #[Route('/api/vehicle/{id}', name: 'get_vehicle', methods: ['GET'])]
-    public function get_vehicle($id, VehicleRepository $vehicleRepository,): JsonResponse
-    {
-        $vehicle = $this->vehicleRepository->find($id);
-
-        if($vehicle)
-            return new JsonResponse($vehicle->toArray(), Response::HTTP_OK);
-        else
-            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
-    }
-
-
-    /**
      * @OA\RequestBody(
-     *      description="Edit vehicule",     
+     *   description="Edit vehicule",     
      *   @OA\JsonContent(
      *      @OA\Property(type="datetime", property="date_added"),
      *      @OA\Property(type="string", property="vehicule_type"),
@@ -141,34 +144,31 @@ class VehicleController extends AbstractController
      *     response=204,
      *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
      * )
+     * 
      */ 
     #[Route('/api/vehicle/{id}', name: 'edit_vehicle', methods: ['PATCH'])]
     public function edit_vehicle($id, Request $request, ValidatorInterface $validator):  JsonResponse
     {
         $vehicle = $this->vehicleRepository->find($id);
-        
-        if($vehicle)
-        {
-            $form = $this->createForm(VehicleType::class, $vehicle);
-            $form->submit($request->request->all());
 
-            $errors = $validator->validate($vehicle);
-            
-            if(count($errors) == 0) {
-                $this->vehicleRepository->add($vehicle);
-                return new JsonResponse(['status' => 'Vehicle edit successful!'], Response::HTTP_CREATED);
-            }
-            else {
-                $errors = $validator->validate($vehicle);
-                $errorsString = (string) $errors;
-                return new JsonResponse(['error' => $this->serializer->serialize($errors,'json') ], Response::HTTP_NOT_IMPLEMENTED);
-            }
+        $form = $this->createForm(VehicleType::class, $vehicle);
+        $form->submit($request->request->all());
+
+        
+        $errors = $validator->validate($vehicle);
+        
+        if(count($errors) == 0) {
+            $this->vehicleRepository->add($vehicle);
+            return new JsonResponse(['status' => 'Vehicle edit successful!'], Response::HTTP_CREATED);
         }
-        else
-            return new JsonResponse(['status' => 'vehicle not found!'], Response::HTTP_NO_CONTENT);
+        else {
+            $errorsString = (string) $errors;
+            return new JsonResponse(['error' => $this->serializer->serialize($errors,'json') ], Response::HTTP_NOT_IMPLEMENTED);
+        }
     }
     
     /**
+     * 
      * @OA\Response(
      *  response=200,
      *  description="Vehicle deleted message",
@@ -181,6 +181,7 @@ class VehicleController extends AbstractController
      *     response=204,
      *     description="HTTP_NO_CONTENT - no vehicle exist with given ID",
      * )
+     * 
      */ 
     #[Route('/api/vehicle/{id}', name: 'delete_vehicle', methods: ['DELETE'])]
     public function delete_vehicle($id, VehicleRepository $vehicleRepository): JsonResponse
