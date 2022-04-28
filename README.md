@@ -52,6 +52,6 @@ Start the server
 To view api documentation, browse to this link
 
 ```bash
-  http://127.0.0.1:800/api/doc
+  http://127.0.0.1:8000/api/doc
 ```
 
